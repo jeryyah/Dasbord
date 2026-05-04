@@ -1,27 +1,27 @@
 openapi: 3.1.0
 info:
+  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: Dashboard API specification
+  description: HEADSETTING Key Manager API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
-  - name: projects
-    description: Project operations
-  - name: tasks
-    description: Task operations
-  - name: stats
-    description: Statistics and summaries
+  - name: admin
+    description: Admin authentication
+  - name: keys
+    description: License key management
+  - name: logs
+    description: Activity logs
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -30,65 +30,104 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 
-  /projects:
+  /admin/me:
     get:
-      operationId: listProjects
-      tags: [projects]
-      summary: List all projects
+      operationId: getAdminMe
+      tags: [admin]
+      summary: Get current admin session
       responses:
         "200":
-          description: List of projects
+          description: Session info
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Project"
+                $ref: "#/components/schemas/AdminSession"
+
+  /admin/login:
     post:
-      operationId: createProject
-      tags: [projects]
-      summary: Create a project
+      operationId: adminLogin
+      tags: [admin]
+      summary: Admin login
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateProjectBody"
+              $ref: "#/components/schemas/AdminLoginBody"
+      responses:
+        "200":
+          description: Login result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminLoginResponse"
+
+  /admin/logout:
+    post:
+      operationId: adminLogout
+      tags: [admin]
+      summary: Admin logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /stats:
+    get:
+      operationId: getStats
+      tags: [keys]
+      summary: Get dashboard statistics
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /keys:
+    get:
+      operationId: getKeys
+      tags: [keys]
+      summary: List all license keys
+      responses:
+        "200":
+          description: List of keys
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KeysResponse"
+
+  /keys/generate:
+    post:
+      operationId: generateKey
+      tags: [keys]
+      summary: Generate a new license key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateKeyBody"
       responses:
         "201":
-          description: Created project
+          description: Key generated
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Project"
+                $ref: "#/components/schemas/LicenseKey"
 
-  /projects/{id}:
-    get:
-      operationId: getProject
-      tags: [projects]
-      summary: Get a project by ID
+  /keys/{id}:
+    put:
+      operationId: editKey
+      tags: [keys]
+      summary: Edit key expiry/device limit
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-      responses:
-        "200":
-          description: Project
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Project"
-        "404":
-          description: Not found
-    patch:
-      operationId: updateProject
-      tags: [projects]
-      summary: Update a project
-      parameters:
-        - in: path
-          name: id
+        - name: id
+          in: path
           required: true
           schema:
             type: integer
@@ -97,175 +136,217 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateProjectBody"
+              $ref: "#/components/schemas/EditKeyBody"
       responses:
         "200":
-          description: Updated project
+          description: Key updated
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Project"
-        "404":
-          description: Not found
+                $ref: "#/components/schemas/LicenseKey"
     delete:
-      operationId: deleteProject
-      tags: [projects]
-      summary: Delete a project
+      operationId: deleteKey
+      tags: [keys]
+      summary: Delete a license key
       parameters:
-        - in: path
-          name: id
+        - name: id
+          in: path
           required: true
           schema:
             type: integer
       responses:
-        "204":
-          description: Deleted
-
-  /tasks:
-    get:
-      operationId: listTasks
-      tags: [tasks]
-      summary: List all tasks
-      parameters:
-        - in: query
-          name: projectId
-          required: false
-          schema:
-            type: ["integer", "null"]
-        - in: query
-          name: status
-          required: false
-          schema:
-            type: ["string", "null"]
-            enum: ["todo", "in_progress", "done", null]
-      responses:
         "200":
-          description: List of tasks
+          description: Key deleted
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Task"
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /keys/{id}/ban:
     post:
-      operationId: createTask
-      tags: [tasks]
-      summary: Create a task
+      operationId: banKey
+      tags: [keys]
+      summary: Ban a license key
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Key banned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LicenseKey"
+
+  /keys/{id}/unban:
+    post:
+      operationId: unbanKey
+      tags: [keys]
+      summary: Unban a license key
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Key unbanned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LicenseKey"
+
+  /keys/{id}/devices:
+    get:
+      operationId: getKeyDevices
+      tags: [keys]
+      summary: Get devices registered to a key
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Devices list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DevicesResponse"
+
+  /keys/{id}/devices/reset:
+    post:
+      operationId: resetKeyDevices
+      tags: [keys]
+      summary: Reset all devices for a key
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Devices reset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /logs:
+    get:
+      operationId: getLogs
+      tags: [logs]
+      summary: Get activity logs
+      responses:
+        "200":
+          description: Activity logs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogsResponse"
+
+  /public/check:
+    get:
+      operationId: publicCheckKey
+      tags: [keys]
+      summary: Validasi key dari script eksternal (tanpa login)
+      parameters:
+        - name: key
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: device_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: device_name
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: android_version
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Hasil pengecekan key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicCheckResponse"
+
+  /public/activate:
+    post:
+      operationId: publicActivateKey
+      tags: [keys]
+      summary: Aktivasi device ke key (tanpa login)
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateTaskBody"
+              $ref: "#/components/schemas/PublicActivateBody"
       responses:
         "201":
-          description: Created task
+          description: Aktivasi berhasil
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Task"
-
-  /tasks/{id}:
-    get:
-      operationId: getTask
-      tags: [tasks]
-      summary: Get a task by ID
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-      responses:
+                $ref: "#/components/schemas/PublicActivateResponse"
         "200":
-          description: Task
+          description: Hasil pengecekan (gagal / sudah terdaftar)
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Task"
-        "404":
-          description: Not found
-    patch:
-      operationId: updateTask
-      tags: [tasks]
-      summary: Update a task
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
+                $ref: "#/components/schemas/PublicActivateResponse"
+
+  /verify:
+    post:
+      operationId: verifyKey
+      tags: [keys]
+      summary: Verifikasi key dari script shell
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateTaskBody"
+              $ref: "#/components/schemas/VerifyBody"
       responses:
         "200":
-          description: Updated task
+          description: Hasil verifikasi
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Task"
-        "404":
-          description: Not found
-    delete:
-      operationId: deleteTask
-      tags: [tasks]
-      summary: Delete a task
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-      responses:
-        "204":
-          description: Deleted
+                $ref: "#/components/schemas/VerifyResponse"
 
-  /stats/summary:
-    get:
-      operationId: getStatsSummary
-      tags: [stats]
-      summary: Get dashboard summary statistics
+  /verify/heartbeat:
+    post:
+      operationId: verifyHeartbeat
+      tags: [keys]
+      summary: Heartbeat ping dari script
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyBody"
       responses:
         "200":
-          description: Summary stats
+          description: Hasil heartbeat
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StatsSummary"
-
-  /tasks/recent:
-    get:
-      operationId: listRecentTasks
-      tags: [tasks]
-      summary: Get recently updated tasks
-      responses:
-        "200":
-          description: Recent tasks
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Task"
-
-  /projects/status-breakdown:
-    get:
-      operationId: getProjectStatusBreakdown
-      tags: [projects]
-      summary: Get task status breakdown per project
-      responses:
-        "200":
-          description: Project status breakdown
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/ProjectStatusBreakdown"
+                $ref: "#/components/schemas/VerifyResponse"
 
 components:
   schemas:
@@ -274,169 +355,244 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
-    Project:
+    AdminSession:
+      type: object
+      properties:
+        loggedIn:
+          type: boolean
+        username:
+          type: ["string", "null"]
+      required: [loggedIn]
+
+    AdminLoginBody:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+      required: [username, password]
+
+    AdminLoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: ["string", "null"]
+      required: [success]
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: ["string", "null"]
+      required: [success]
+
+    DashboardStats:
+      type: object
+      properties:
+        totalKeys:
+          type: integer
+        activeKeys:
+          type: integer
+        expiredKeys:
+          type: integer
+        bannedKeys:
+          type: integer
+        totalDevices:
+          type: integer
+        todayActivations:
+          type: integer
+      required: [totalKeys, activeKeys, expiredKeys, bannedKeys, totalDevices, todayActivations]
+
+    LicenseKeyStatus:
+      type: string
+      enum: [active, expired, banned]
+
+    LicenseKey:
       type: object
       properties:
         id:
           type: integer
-        name:
+        keyString:
           type: string
-        description:
-          type: ["string", "null"]
-        color:
+        status:
+          $ref: "#/components/schemas/LicenseKeyStatus"
+        maxDevices:
+          type: integer
+        deviceCount:
+          type: integer
+        expiredDate:
           type: string
         createdAt:
           type: string
           format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-      required:
-        - id
-        - name
-        - color
-        - createdAt
-        - updatedAt
+      required: [id, keyString, status, maxDevices, deviceCount, expiredDate, createdAt]
 
-    CreateProjectBody:
+    KeysResponse:
       type: object
       properties:
-        name:
-          type: string
-        description:
-          type: ["string", "null"]
-        color:
-          type: string
-      required:
-        - name
-        - color
+        keys:
+          type: array
+          items:
+            $ref: "#/components/schemas/LicenseKey"
+      required: [keys]
 
-    UpdateProjectBody:
+    GenerateKeyBody:
       type: object
       properties:
-        name:
-          type: string
-        description:
-          type: ["string", "null"]
-        color:
-          type: string
+        days:
+          type: integer
+        maxDevices:
+          type: integer
+      required: [days, maxDevices]
 
-    Task:
+    EditKeyBody:
+      type: object
+      properties:
+        maxDevices:
+          type: integer
+        expiredDate:
+          type: string
+      required: [maxDevices, expiredDate]
+
+    Device:
       type: object
       properties:
         id:
           type: integer
-        title:
+        deviceId:
           type: string
-        description:
+        deviceName:
+          type: ["string", "null"]
+        androidVersion:
+          type: ["string", "null"]
+        firstActivated:
+          type: string
+          format: date-time
+        lastCheckin:
+          type: string
+          format: date-time
+      required: [id, deviceId, firstActivated, lastCheckin]
+
+    DevicesResponse:
+      type: object
+      properties:
+        devices:
+          type: array
+          items:
+            $ref: "#/components/schemas/Device"
+      required: [devices]
+
+    ActivityLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        action:
+          type: string
+        keyString:
+          type: ["string", "null"]
+        deviceId:
+          type: ["string", "null"]
+        detail:
+          type: ["string", "null"]
+        timestamp:
+          type: string
+          format: date-time
+      required: [id, action, timestamp]
+
+    LogsResponse:
+      type: object
+      properties:
+        logs:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActivityLog"
+      required: [logs]
+
+    PublicCheckResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        message:
+          type: string
+        key:
           type: ["string", "null"]
         status:
-          type: string
-          enum: ["todo", "in_progress", "done"]
-        priority:
-          type: string
-          enum: ["low", "medium", "high"]
-        projectId:
-          type: ["integer", "null"]
-        dueDate:
           type: ["string", "null"]
-          format: date-time
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-      required:
-        - id
-        - title
-        - status
-        - priority
-        - createdAt
-        - updatedAt
+        expiredDate:
+          type: ["string", "null"]
+        maxDevices:
+          type: ["integer", "null"]
+      required: [valid, message]
 
-    CreateTaskBody:
+    PublicActivateBody:
       type: object
       properties:
-        title:
+        key:
           type: string
-        description:
+        device_id:
+          type: string
+        device_name:
+          type: string
+        android_version:
+          type: string
+      required: [key, device_id]
+
+    PublicActivateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        alreadyRegistered:
+          type: ["boolean", "null"]
+        key:
           type: ["string", "null"]
         status:
-          type: string
-          enum: ["todo", "in_progress", "done"]
-        priority:
-          type: string
-          enum: ["low", "medium", "high"]
-        projectId:
-          type: ["integer", "null"]
-        dueDate:
           type: ["string", "null"]
-          format: date-time
-      required:
-        - title
+        expiredDate:
+          type: ["string", "null"]
+        daysRemaining:
+          type: ["integer", "null"]
+        maxDevices:
+          type: ["integer", "null"]
+        deviceCount:
+          type: ["integer", "null"]
+        deviceId:
+          type: ["string", "null"]
+        deviceName:
+          type: ["string", "null"]
+      required: [success, message]
 
-    UpdateTaskBody:
+    VerifyBody:
       type: object
       properties:
-        title:
+        key:
           type: string
-        description:
-          type: ["string", "null"]
+        device_id:
+          type: string
+        device_name:
+          type: string
+        android_version:
+          type: string
+      required: [key]
+
+    VerifyResponse:
+      type: object
+      properties:
         status:
           type: string
-          enum: ["todo", "in_progress", "done"]
-        priority:
-          type: string
-          enum: ["low", "medium", "high"]
-        projectId:
-          type: ["integer", "null"]
-        dueDate:
+        message:
           type: ["string", "null"]
-          format: date-time
-
-    StatsSummary:
-      type: object
-      properties:
-        totalProjects:
-          type: integer
-        totalTasks:
-          type: integer
-        completedTasks:
-          type: integer
-        inProgressTasks:
-          type: integer
-        todoTasks:
-          type: integer
-        highPriorityTasks:
-          type: integer
-      required:
-        - totalProjects
-        - totalTasks
-        - completedTasks
-        - inProgressTasks
-        - todoTasks
-        - highPriorityTasks
-
-    ProjectStatusBreakdown:
-      type: object
-      properties:
-        projectId:
-          type: integer
-        projectName:
-          type: string
-        todoCount:
-          type: integer
-        inProgressCount:
-          type: integer
-        doneCount:
-          type: integer
-      required:
-        - projectId
-        - projectName
-        - todoCount
-        - inProgressCount
-        - doneCount
+        expired_date:
+          type: ["string", "null"]
+      required: [status]

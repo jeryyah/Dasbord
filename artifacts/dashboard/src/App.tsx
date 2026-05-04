@@ -1,30 +1,96 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useGetAdminMe } from "@workspace/api-client-react";
+import { useEffect } from "react";
+
+import { Layout } from "@/components/layout/sidebar";
+import Login from "@/pages/login";
+import Dashboard from "@/pages/dashboard";
+import Keys from "@/pages/keys";
+import Logs from "@/pages/logs";
+import ApiDocs from "@/pages/api-docs";
 import NotFound from "@/pages/not-found";
-import { Layout } from "@/components/layout/Layout";
 
-import Home from "@/pages/home";
-import Projects from "@/pages/projects/index";
-import ProjectDetail from "@/pages/projects/[id]";
-import Tasks from "@/pages/tasks/index";
-import TaskDetail from "@/pages/tasks/[id]";
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
-const queryClient = new QueryClient();
+function ProtectedRoute({ component: Component }: { component: any }) {
+  const [, setLocation] = useLocation();
+  const { data: me, isLoading } = useGetAdminMe();
+
+  useEffect(() => {
+    if (!isLoading && (!me || !me.loggedIn)) {
+      setLocation("/login");
+    }
+  }, [me, isLoading, setLocation]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!me || !me.loggedIn) {
+    return null;
+  }
+
+  return (
+    <Layout>
+      <Component />
+    </Layout>
+  );
+}
+
+function Root() {
+  const [, setLocation] = useLocation();
+  const { data: me, isLoading } = useGetAdminMe();
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (me?.loggedIn) {
+        setLocation("/dashboard");
+      } else {
+        setLocation("/login");
+      }
+    }
+  }, [me, isLoading, setLocation]);
+
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
+}
 
 function Router() {
   return (
-    <Layout>
-      <Switch>
-        <Route path="/" component={Home} />
-        <Route path="/projects" component={Projects} />
-        <Route path="/projects/:id" component={ProjectDetail} />
-        <Route path="/tasks" component={Tasks} />
-        <Route path="/tasks/:id" component={TaskDetail} />
-        <Route component={NotFound} />
-      </Switch>
-    </Layout>
+    <Switch>
+      <Route path="/" component={Root} />
+      <Route path="/login" component={Login} />
+      <Route path="/dashboard">
+        {() => <ProtectedRoute component={Dashboard} />}
+      </Route>
+      <Route path="/keys">
+        {() => <ProtectedRoute component={Keys} />}
+      </Route>
+      <Route path="/logs">
+        {() => <ProtectedRoute component={Logs} />}
+      </Route>
+      <Route path="/api-docs">
+        {() => <ProtectedRoute component={ApiDocs} />}
+      </Route>
+      <Route component={NotFound} />
+    </Switch>
   );
 }
 
