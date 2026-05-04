@@ -18,6 +18,7 @@ const queryClient = new QueryClient({
     queries: {
       retry: false,
       refetchOnWindowFocus: false,
+      staleTime: 30_000,
     },
   },
 });
@@ -27,7 +28,7 @@ function ProtectedRoute({ component: Component }: { component: any }) {
   const { data: me, isLoading } = useGetAdminMe();
 
   useEffect(() => {
-    if (!isLoading && (!me || !me.loggedIn)) {
+    if (!isLoading && me && !me.loggedIn) {
       setLocation("/login");
     }
   }, [me, isLoading, setLocation]);
@@ -35,13 +36,17 @@ function ProtectedRoute({ component: Component }: { component: any }) {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   if (!me || !me.loggedIn) {
-    return null;
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
   }
 
   return (
@@ -57,17 +62,13 @@ function Root() {
 
   useEffect(() => {
     if (!isLoading) {
-      if (me?.loggedIn) {
-        setLocation("/dashboard");
-      } else {
-        setLocation("/login");
-      }
+      setLocation(me?.loggedIn ? "/dashboard" : "/login");
     }
   }, [me, isLoading, setLocation]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 }

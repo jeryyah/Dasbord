@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { ShieldCheck, Lock, User } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { useAdminLogin, useGetAdminMe } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export default function Login() {
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const { data: me, isLoading: checkingAuth } = useGetAdminMe();
   const loginMutation = useAdminLogin();
@@ -49,13 +51,17 @@ export default function Login() {
       {
         onSuccess: (response) => {
           if (response.success) {
+            queryClient.setQueryData(["/api/admin/me"], {
+              loggedIn: true,
+              username: data.username,
+            });
             setLocation("/dashboard");
           } else {
-            setError(response.message || "Login failed");
+            setError(response.message || "Login gagal. Cek username & password.");
           }
         },
-        onError: (err) => {
-          setError(err.message || "An error occurred");
+        onError: () => {
+          setError("Terjadi kesalahan. Coba lagi.");
         },
       }
     );
@@ -91,7 +97,11 @@ export default function Login() {
                     <FormControl>
                       <div className="relative">
                         <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="admin" {...field} className="pl-9 bg-background border-border focus-visible:ring-primary" />
+                        <Input
+                          placeholder="admin"
+                          {...field}
+                          className="pl-9 bg-background border-border focus-visible:ring-primary"
+                        />
                       </div>
                     </FormControl>
                     <FormMessage />
@@ -107,7 +117,12 @@ export default function Login() {
                     <FormControl>
                       <div className="relative">
                         <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input type="password" placeholder="••••••••" {...field} className="pl-9 bg-background border-border focus-visible:ring-primary" />
+                        <Input
+                          type="password"
+                          placeholder="••••••••"
+                          {...field}
+                          className="pl-9 bg-background border-border focus-visible:ring-primary"
+                        />
                       </div>
                     </FormControl>
                     <FormMessage />
@@ -132,6 +147,11 @@ export default function Login() {
             </form>
           </Form>
         </div>
+
+        <p className="text-center text-xs text-muted-foreground mt-4">
+          Default: <span className="font-mono font-medium text-foreground">admin</span> /
+          <span className="font-mono font-medium text-foreground"> admin123</span>
+        </p>
       </div>
     </div>
   );

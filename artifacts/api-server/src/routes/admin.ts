@@ -10,8 +10,8 @@ function hashPassword(password: string): string {
   return createHash("sha256").update(password + "headsetting_salt").digest("hex");
 }
 
-router.get("/me", (req, res) => {
-  const session = (req as any).session;
+router.get("/me", (_req, res) => {
+  const session = (_req as any).session;
   if (session?.adminLoggedIn) {
     res.json({ loggedIn: true, username: session.adminUsername });
   } else {
@@ -19,21 +19,24 @@ router.get("/me", (req, res) => {
   }
 });
 
-router.post("/login", async (req, res) => {
+router.post("/login", async (req, res): Promise<void> => {
   try {
     const { username, password } = req.body;
     if (!username || !password) {
-      return res.json({ success: false, message: "Username dan password wajib diisi" });
+      res.json({ success: false, message: "Username dan password wajib diisi" });
+      return;
     }
 
     const [admin] = await db.select().from(adminTable).where(eq(adminTable.username, username));
     if (!admin) {
-      return res.json({ success: false, message: "Username atau password salah" });
+      res.json({ success: false, message: "Username atau password salah" });
+      return;
     }
 
     const hash = hashPassword(password);
     if (hash !== admin.passwordHash) {
-      return res.json({ success: false, message: "Username atau password salah" });
+      res.json({ success: false, message: "Username atau password salah" });
+      return;
     }
 
     (req as any).session.adminLoggedIn = true;

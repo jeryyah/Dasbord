@@ -8,6 +8,7 @@ import {
   useUnbanKey,
   useGetKeyDevices,
   useResetKeyDevices,
+  getGetKeyDevicesQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format, parseISO, differenceInDays } from "date-fns";
@@ -78,9 +79,10 @@ export default function Keys() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<KeyWithCount | null>(null);
 
+  const safeDevKeyId = devKeyId !== null ? devKeyId : 0;
   const { data: devicesData, isLoading: devLoading } = useGetKeyDevices(
-    devKeyId !== null ? devKeyId : 0,
-    { query: { enabled: devKeyId !== null } }
+    safeDevKeyId,
+    { query: { queryKey: getGetKeyDevicesQueryKey(safeDevKeyId), enabled: devKeyId !== null } }
   );
 
   const keys = data?.keys ?? [];

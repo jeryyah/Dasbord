@@ -21,7 +21,7 @@ async function logActivity(action: string, keyString?: string, deviceId?: string
   await db.insert(activityLogsTable).values({ action, keyString: keyString ?? null, deviceId: deviceId ?? null, detail: detail ?? null });
 }
 
-router.get("/", async (req, res) => {
+router.get("/", async (req, res): Promise<void> => {
   try {
     const keys = await db.select().from(licenseKeysTable).orderBy(sql`created_at DESC`);
     const deviceCounts = await db.select({
@@ -43,7 +43,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.post("/generate", async (req, res) => {
+router.post("/generate", async (req, res): Promise<void> => {
   try {
     const { days, maxDevices } = req.body;
     const expiredDate = format(addDays(new Date(), days), "yyyy-MM-dd");
@@ -65,7 +65,7 @@ router.post("/generate", async (req, res) => {
   }
 });
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", async (req, res): Promise<void> => {
   try {
     const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const id = parseInt(raw, 10);
@@ -76,7 +76,10 @@ router.put("/:id", async (req, res) => {
       .where(eq(licenseKeysTable.id, id))
       .returning();
 
-    if (!key) return res.status(404).json({ error: "Key not found" });
+    if (!key) {
+      res.status(404).json({ error: "Key not found" });
+      return;
+    }
 
     const [deviceCount] = await db.select({ count: count() }).from(devicesTable).where(eq(devicesTable.keyId, id));
     await logActivity("key_edited", key.keyString, undefined, `Diubah: max=${maxDevices}, expired=${expiredDate}`);
@@ -88,12 +91,15 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", async (req, res): Promise<void> => {
   try {
     const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const id = parseInt(raw, 10);
     const [key] = await db.select().from(licenseKeysTable).where(eq(licenseKeysTable.id, id));
-    if (!key) return res.status(404).json({ success: false, message: "Key not found" });
+    if (!key) {
+      res.status(404).json({ success: false, message: "Key not found" });
+      return;
+    }
 
     await db.delete(licenseKeysTable).where(eq(licenseKeysTable.id, id));
     await logActivity("key_deleted", key.keyString, undefined, "Key dihapus permanen");
@@ -105,7 +111,7 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-router.post("/:id/ban", async (req, res) => {
+router.post("/:id/ban", async (req, res): Promise<void> => {
   try {
     const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const id = parseInt(raw, 10);
@@ -114,7 +120,10 @@ router.post("/:id/ban", async (req, res) => {
       .where(eq(licenseKeysTable.id, id))
       .returning();
 
-    if (!key) return res.status(404).json({ error: "Key not found" });
+    if (!key) {
+      res.status(404).json({ error: "Key not found" });
+      return;
+    }
 
     const [deviceCount] = await db.select({ count: count() }).from(devicesTable).where(eq(devicesTable.keyId, id));
     await logActivity("key_banned", key.keyString, undefined, "Key dibanned oleh admin");
@@ -126,7 +135,7 @@ router.post("/:id/ban", async (req, res) => {
   }
 });
 
-router.post("/:id/unban", async (req, res) => {
+router.post("/:id/unban", async (req, res): Promise<void> => {
   try {
     const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const id = parseInt(raw, 10);
@@ -135,7 +144,10 @@ router.post("/:id/unban", async (req, res) => {
       .where(eq(licenseKeysTable.id, id))
       .returning();
 
-    if (!key) return res.status(404).json({ error: "Key not found" });
+    if (!key) {
+      res.status(404).json({ error: "Key not found" });
+      return;
+    }
 
     const [deviceCount] = await db.select({ count: count() }).from(devicesTable).where(eq(devicesTable.keyId, id));
     await logActivity("key_unbanned", key.keyString, undefined, "Key di-unban oleh admin");
@@ -147,7 +159,7 @@ router.post("/:id/unban", async (req, res) => {
   }
 });
 
-router.get("/:id/devices", async (req, res) => {
+router.get("/:id/devices", async (req, res): Promise<void> => {
   try {
     const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const id = parseInt(raw, 10);
@@ -162,12 +174,15 @@ router.get("/:id/devices", async (req, res) => {
   }
 });
 
-router.post("/:id/devices/reset", async (req, res) => {
+router.post("/:id/devices/reset", async (req, res): Promise<void> => {
   try {
     const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const id = parseInt(raw, 10);
     const [key] = await db.select().from(licenseKeysTable).where(eq(licenseKeysTable.id, id));
-    if (!key) return res.status(404).json({ success: false, message: "Key not found" });
+    if (!key) {
+      res.status(404).json({ success: false, message: "Key not found" });
+      return;
+    }
 
     await db.delete(devicesTable).where(eq(devicesTable.keyId, id));
     await logActivity("devices_reset", key.keyString, undefined, "Semua device direset oleh admin");

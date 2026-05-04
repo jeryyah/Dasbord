@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useGetLogs } from "@workspace/api-client-react";
+import { useGetLogs, getGetLogsQueryKey } from "@workspace/api-client-react";
 import { format } from "date-fns";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -38,6 +38,7 @@ export default function Logs() {
 
   const { data, isLoading } = useGetLogs({
     query: {
+      queryKey: getGetLogsQueryKey(),
       refetchInterval: isLive ? 3000 : false,
       refetchIntervalInBackground: false,
     },

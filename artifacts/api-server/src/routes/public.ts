@@ -62,27 +62,35 @@ function daysRemaining(expiredDate: string): number {
   return Math.max(0, Math.ceil((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
 }
 
-router.get("/check", async (req, res) => {
+router.get("/check", async (req, res): Promise<void> => {
   try {
     if (!applyRateLimit(req, res)) return;
 
     const { key, device_id, device_name, android_version } = req.query as Record<string, string>;
 
     if (!key) {
-      return res.status(400).json({ valid: false, message: "Parameter 'key' wajib diisi" });
+      res.status(400).json({ valid: false, message: "Parameter 'key' wajib diisi" });
+      return;
     }
 
     const [licenseKey] = await db.select().from(licenseKeysTable).where(eq(licenseKeysTable.keyString, key.toUpperCase()));
 
-    if (!licenseKey) return res.json({ valid: false, message: "Key tidak ditemukan" });
-    if (licenseKey.status === "banned") return res.json({ valid: false, message: "Key telah dibanned" });
+    if (!licenseKey) {
+      res.json({ valid: false, message: "Key tidak ditemukan" });
+      return;
+    }
+    if (licenseKey.status === "banned") {
+      res.json({ valid: false, message: "Key telah dibanned" });
+      return;
+    }
 
     const today = new Date().toISOString().split("T")[0];
     if (licenseKey.expiredDate < today) {
       if (licenseKey.status !== "expired") {
         await db.update(licenseKeysTable).set({ status: "expired" }).where(eq(licenseKeysTable.id, licenseKey.id));
       }
-      return res.json({ valid: false, message: "Key sudah kadaluarsa" });
+      res.json({ valid: false, message: "Key sudah kadaluarsa" });
+      return;
     }
 
     if (device_id) {
@@ -92,14 +100,15 @@ router.get("/check", async (req, res) => {
       } else {
         const [deviceCount] = await db.select({ count: count() }).from(devicesTable).where(eq(devicesTable.keyId, licenseKey.id));
         if (Number(deviceCount.count) >= licenseKey.maxDevices) {
-          return res.json({ valid: false, message: `Batas device tercapai (max ${licenseKey.maxDevices})` });
+          res.json({ valid: false, message: `Batas device tercapai (max ${licenseKey.maxDevices})` });
+          return;
         }
         await db.insert(devicesTable).values({ keyId: licenseKey.id, deviceId: device_id, deviceName: device_name ?? null, androidVersion: android_version ?? null });
         await db.insert(activityLogsTable).values({ action: "device_activated", keyString: licenseKey.keyString, deviceId: device_id, detail: `Device baru: ${device_name ?? device_id}` });
       }
     }
 
-    return res.json({
+    res.json({
       valid: true,
       message: "Key valid",
       key: licenseKey.keyString,
@@ -113,37 +122,51 @@ router.get("/check", async (req, res) => {
   }
 });
 
-router.post("/activate", async (req, res) => {
+router.post("/activate", async (req, res): Promise<void> => {
   try {
     if (!applyRateLimit(req, res)) return;
 
     const { key, device_id, device_name, android_version } = req.body as Record<string, string>;
 
-    if (!key) return res.status(400).json({ success: false, message: "Field 'key' wajib diisi" });
-    if (!device_id) return res.status(400).json({ success: false, message: "Field 'device_id' wajib diisi" });
+    if (!key) {
+      res.status(400).json({ success: false, message: "Field 'key' wajib diisi" });
+      return;
+    }
+    if (!device_id) {
+      res.status(400).json({ success: false, message: "Field 'device_id' wajib diisi" });
+      return;
+    }
 
     const [licenseKey] = await db.select().from(licenseKeysTable).where(eq(licenseKeysTable.keyString, key.toUpperCase()));
 
-    if (!licenseKey) return res.json({ success: false, message: "Key tidak ditemukan" });
-    if (licenseKey.status === "banned") return res.json({ success: false, message: "Key telah dibanned" });
+    if (!licenseKey) {
+      res.json({ success: false, message: "Key tidak ditemukan" });
+      return;
+    }
+    if (licenseKey.status === "banned") {
+      res.json({ success: false, message: "Key telah dibanned" });
+      return;
+    }
 
     const today = new Date().toISOString().split("T")[0];
     if (licenseKey.expiredDate < today) {
       if (licenseKey.status !== "expired") {
         await db.update(licenseKeysTable).set({ status: "expired" }).where(eq(licenseKeysTable.id, licenseKey.id));
       }
-      return res.json({ success: false, message: "Key sudah kadaluarsa" });
+      res.json({ success: false, message: "Key sudah kadaluarsa" });
+      return;
     }
 
     const [existingDevice] = await db.select().from(devicesTable).where(eq(devicesTable.deviceId, device_id));
 
     if (existingDevice) {
       if (existingDevice.keyId !== licenseKey.id) {
-        return res.json({ success: false, message: "Device sudah terdaftar di key lain" });
+        res.json({ success: false, message: "Device sudah terdaftar di key lain" });
+        return;
       }
       await db.update(devicesTable).set({ lastCheckin: new Date() }).where(eq(devicesTable.deviceId, device_id));
       const [deviceCount] = await db.select({ count: count() }).from(devicesTable).where(eq(devicesTable.keyId, licenseKey.id));
-      return res.json({
+      res.json({
         success: true,
         message: "Device sudah terdaftar sebelumnya",
         alreadyRegistered: true,
@@ -156,11 +179,13 @@ router.post("/activate", async (req, res) => {
         deviceId: device_id,
         deviceName: device_name ?? null,
       });
+      return;
     }
 
     const [deviceCount] = await db.select({ count: count() }).from(devicesTable).where(eq(devicesTable.keyId, licenseKey.id));
     if (Number(deviceCount.count) >= licenseKey.maxDevices) {
-      return res.json({ success: false, message: `Batas device tercapai (${Number(deviceCount.count)}/${licenseKey.maxDevices})` });
+      res.json({ success: false, message: `Batas device tercapai (${Number(deviceCount.count)}/${licenseKey.maxDevices})` });
+      return;
     }
 
     await db.insert(devicesTable).values({
@@ -177,7 +202,7 @@ router.post("/activate", async (req, res) => {
       detail: `Aktivasi baru: ${device_name ?? device_id}${android_version ? ` (Android ${android_version})` : ""}`,
     });
 
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
       message: "Aktivasi berhasil",
       alreadyRegistered: false,
